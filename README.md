@@ -87,6 +87,32 @@ cargo build --release
 
 Toggle the sidebar off → on to pick up the new binary.
 
+### Picking up local builds for the Claude Code plugin
+
+If you also installed this as a Claude Code plugin (`/plugin`), its install path
+holds a copy of the released binary that hooks resolve before falling back to
+`target/release/`. To make local builds flow through Claude Code hooks too,
+replace that copy with a symlink to your working copy:
+
+```sh
+# Replace the cached plugin install with a symlink to your repo
+PLUGIN_CACHE=~/.claude/plugins/cache/<owner>/tmux-agent-sidebar/<version>
+rm -rf "$PLUGIN_CACHE"
+ln -s <path-to-this-repo> "$PLUGIN_CACHE"
+```
+
+Also remove the stale release binary at `bin/tmux-agent-sidebar` in your repo
+if present — both the tmux launcher and `hook.sh` prefer `bin/` over
+`target/release/`, so a leftover binary there will mask `cargo build --release`
+output:
+
+```sh
+rm -f bin/tmux-agent-sidebar
+```
+
+Note: Claude Code's plugin updater may overwrite the symlink on a future
+update; re-run the symlink step if that happens.
+
 ## License
 
 [MIT](./LICENSE)
