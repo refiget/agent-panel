@@ -65,6 +65,11 @@ pub fn run(
         if event::poll(timeout)? {
             loop {
                 let ev = event::read()?;
+                if let event::Event::Key(ref key) = ev
+                    && input::quit_requested(key)
+                {
+                    return Ok(());
+                }
                 if input::handle_event(ev, &mut state, &git_tab_active, terminal) {
                     needs_redraw = true;
                 }

@@ -1,7 +1,7 @@
 use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crossterm::event::{Event, KeyCode, MouseButton, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyEvent, MouseButton, MouseEventKind};
 use ratatui::{Terminal, backend::CrosstermBackend};
 
 use crate::state::{AppState, BottomTab, Focus};
@@ -89,8 +89,6 @@ pub(super) fn handle_event(
                     Focus::Panes => {
                         if state.move_pane_selection(1) {
                             state.global.queue_cursor_save();
-                        } else {
-                            state.focus_state.focus = Focus::ActivityLog;
                         }
                     }
                     Focus::ActivityLog => state.scroll_bottom(1),
@@ -100,8 +98,6 @@ pub(super) fn handle_event(
                     Focus::Panes => {
                         if state.move_pane_selection(-1) {
                             state.global.queue_cursor_save();
-                        } else {
-                            state.focus_state.focus = Focus::Filter;
                         }
                     }
                     Focus::ActivityLog => {
@@ -194,4 +190,30 @@ pub(super) fn handle_event(
         _ => {}
     }
     needs_redraw
+}
+
+pub(super) fn quit_requested(key: &KeyEvent) -> bool {
+    matches!(key.code, KeyCode::Char('q') | KeyCode::Esc)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyEventKind, KeyEventState, KeyModifiers};
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent {
+            code,
+            modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Press,
+            state: KeyEventState::NONE,
+        }
+    }
+
+    #[test]
+    fn q_and_escape_quit() {
+        assert!(quit_requested(&key(KeyCode::Char('q'))));
+        assert!(quit_requested(&key(KeyCode::Esc)));
+        assert!(!quit_requested(&key(KeyCode::Char('j'))));
+    }
 }
