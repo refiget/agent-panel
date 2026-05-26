@@ -95,29 +95,18 @@ pub(super) fn wait_reason_row(
     let reason = wait_reason_label(wait_reason);
     let text = format!("  ◈ {}", reason);
     let text_dw = display_width(&text);
-    let amber_bg = ratatui::style::Color::Indexed(52);
     let reason_color = if matches!(status, PaneStatus::Error) {
         ctx.theme.status_error
     } else {
         ctx.theme.wait_reason
     };
-    // Build spans with amber background directly — bypass ctx.apply_bg so the
-    // amber bg always shows regardless of selection state.
-    let mut spans = Vec::with_capacity(4);
-    spans.push(Span::styled(ctx.marker_char, ctx.marker_style));
-    spans.push(Span::styled(" ", Style::default().bg(amber_bg)));
-    spans.push(Span::styled(
-        text,
-        Style::default().fg(reason_color).bg(amber_bg),
-    ));
-    let padding_len = ctx.inner_width.saturating_sub(text_dw);
-    if padding_len > 0 {
-        spans.push(Span::styled(
-            " ".repeat(padding_len),
-            Style::default().bg(amber_bg),
-        ));
-    }
-    Some(Line::from(spans))
+    Some(ctx.row_line(
+        vec![Span::styled(
+            text,
+            ctx.apply_bg(Style::default().fg(reason_color)),
+        )],
+        text_dw,
+    ))
 }
 
 pub(super) fn background_hint_row(ctx: &RowCtx, cmd: &str) -> Line<'static> {
@@ -145,9 +134,8 @@ pub(super) fn prompt_rows(pane: &crate::tmux::PaneInfo, ctx: &RowCtx) -> Vec<Lin
     };
 
     if is_response {
-        let bg = ratatui::style::Color::Indexed(22);
-        let fg = ratatui::style::Color::Indexed(238);
         let arrow_color = ratatui::style::Color::Indexed(71);
+        let text_color = ratatui::style::Color::Indexed(108);
         let prefix = "← ";
         let prefix_dw = display_width(prefix);
         let budget = ctx.inner_width.saturating_sub(2 + prefix_dw);
@@ -155,8 +143,8 @@ pub(super) fn prompt_rows(pane: &crate::tmux::PaneInfo, ctx: &RowCtx) -> Vec<Lin
         let text_dw = prefix_dw + display_width(&truncated);
         return vec![ctx.row_line(
             vec![
-                Span::styled(prefix.to_string(), Style::default().fg(arrow_color).bg(bg)),
-                Span::styled(truncated, Style::default().fg(fg).bg(bg)),
+                Span::styled(prefix.to_string(), ctx.apply_bg(Style::default().fg(arrow_color))),
+                Span::styled(truncated, ctx.apply_bg(Style::default().fg(text_color))),
             ],
             text_dw,
         )];
