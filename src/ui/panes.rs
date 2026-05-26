@@ -51,33 +51,50 @@ fn anchor_below(area: Rect, anchor_y: u16, desired_width: u16, desired_height: u
 
 struct PaneLayout {
     filter_area: Rect,
+    sep1_area: Rect,
     secondary_area: Rect,
+    sep2_area: Rect,
     list_area: Rect,
 }
 
 impl PaneLayout {
     fn compute(area: Rect) -> Self {
+        let h = area.height;
         let filter_area = Rect {
             x: area.x,
             y: area.y,
             width: area.width,
-            height: 1.min(area.height),
+            height: 1.min(h),
         };
-        let secondary_area = Rect {
+        let sep1_area = Rect {
             x: area.x,
             y: area.y + 1,
             width: area.width,
-            height: 1.min(area.height.saturating_sub(1)),
+            height: 1.min(h.saturating_sub(1)),
         };
-        let list_area = Rect {
+        let secondary_area = Rect {
             x: area.x,
             y: area.y + 2,
             width: area.width,
-            height: area.height.saturating_sub(2),
+            height: 1.min(h.saturating_sub(2)),
+        };
+        let sep2_area = Rect {
+            x: area.x,
+            y: area.y + 3,
+            width: area.width,
+            height: 1.min(h.saturating_sub(3)),
+        };
+        let list_area = Rect {
+            x: area.x,
+            y: area.y + 4,
+            width: area.width,
+            height: h.saturating_sub(4),
         };
         Self {
             filter_area,
+            sep1_area,
             secondary_area,
+            sep2_area,
             list_area,
         }
     }
@@ -410,6 +427,20 @@ pub(super) fn render_repo_popup(frame: &mut Frame, state: &mut AppState, area: R
     }
 }
 
+fn render_separator_into(frame: &mut Frame, state: &AppState, area: Rect) {
+    if area.height == 0 {
+        return;
+    }
+    let line = "─".repeat(area.width as usize);
+    frame.render_widget(
+        Paragraph::new(Line::from(Span::styled(
+            line,
+            Style::default().fg(state.theme.border_inactive),
+        ))),
+        area,
+    );
+}
+
 fn render_filter_bar_into(frame: &mut Frame, state: &AppState, area: Rect) {
     let line = filter_bar::render_filter_bar(state);
     frame.render_widget(Paragraph::new(vec![line]), area);
@@ -426,6 +457,8 @@ fn render_secondary_header_into(frame: &mut Frame, state: &mut AppState, area: R
 fn compute_scroll_offset(state: &mut AppState, total_lines: usize, list_area: Rect) -> usize {
     state.scrolls.panes.total_lines = total_lines;
     state.scrolls.panes.visible_height = list_area.height as usize;
+    let max_offset = total_lines.saturating_sub(list_area.height as usize);
+    state.scrolls.panes.offset = state.scrolls.panes.offset.min(max_offset);
 
     // Auto-scroll to keep selected agent visible
     if state.focus_state.sidebar_focused && state.focus_state.focus == Focus::Panes {
@@ -486,7 +519,9 @@ fn render_flash_banner_into(frame: &mut Frame, state: &mut AppState, area: Rect)
 pub fn draw_agents(frame: &mut Frame, state: &mut AppState, area: Rect) {
     let layout = PaneLayout::compute(area);
     render_filter_bar_into(frame, state, layout.filter_area);
+    render_separator_into(frame, state, layout.sep1_area);
     render_secondary_header_into(frame, state, layout.secondary_area);
+    render_separator_into(frame, state, layout.sep2_area);
 
     let row_collector::CollectedRows {
         lines,
@@ -526,16 +561,19 @@ mod tests {
         assert_eq!(layout.filter_area.y, 0);
         assert_eq!(layout.filter_area.width, 40);
         assert_eq!(layout.filter_area.height, 1);
-        assert_eq!(layout.secondary_area.y, 1);
+        assert_eq!(layout.sep1_area.y, 1);
+        assert_eq!(layout.sep1_area.height, 1);
+        assert_eq!(layout.secondary_area.y, 2);
         assert_eq!(layout.secondary_area.height, 1);
-        assert_eq!(layout.list_area.y, 2);
-        assert_eq!(layout.list_area.height, 18);
+        assert_eq!(layout.sep2_area.y, 3);
+        assert_eq!(layout.sep2_area.height, 1);
+        assert_eq!(layout.list_area.y, 4);
+        assert_eq!(layout.list_area.height, 16);
         assert_eq!(layout.list_area.width, 40);
     }
 
     #[test]
     fn pane_layout_handles_tiny_area() {
-        // Only 1 row available — filter gets it, secondary and list collapse to 0.
         let area = Rect {
             x: 0,
             y: 0,
@@ -544,7 +582,9 @@ mod tests {
         };
         let layout = PaneLayout::compute(area);
         assert_eq!(layout.filter_area.height, 1);
+        assert_eq!(layout.sep1_area.height, 0);
         assert_eq!(layout.secondary_area.height, 0);
+        assert_eq!(layout.sep2_area.height, 0);
         assert_eq!(layout.list_area.height, 0);
     }
 
@@ -573,10 +613,25 @@ mod tests {
         let layout = PaneLayout::compute(area);
         assert_eq!(layout.filter_area.x, 5);
         assert_eq!(layout.filter_area.y, 10);
-        assert_eq!(layout.secondary_area.x, 5);
-        assert_eq!(layout.secondary_area.y, 11);
-        assert_eq!(layout.list_area.x, 5);
-        assert_eq!(layout.list_area.y, 12);
-        assert_eq!(layout.list_area.height, 13);
+        assert_eq!(layout.sep1_area.y, 11);
+        assert_eq!(layout.secondary_area.y, 12);
+        assert_eq!(layout.sep2_area.y, 13);
+        assert_eq!(layout.list_area.y, 14);
+        assert_eq!(layout.list_area.height, 11);
+    }
+
+    #[test]
+    fn compute_scroll_offset_clamps_stale_offset() {
+        let mut state = AppState::new("%99".into());
+        state.scrolls.panes.offset = 20;
+        let list_area = Rect {
+            x: 0,
+            y: 2,
+            width: 80,
+            height: 10,
+        };
+
+        assert_eq!(compute_scroll_offset(&mut state, 3, list_area), 0);
+        assert_eq!(state.scrolls.panes.offset, 0);
     }
 }

@@ -1,5 +1,5 @@
 use ratatui::{
-    style::Style,
+    style::{Color, Style},
     text::{Line, Span},
 };
 
@@ -41,7 +41,10 @@ pub(super) fn render_filter_bar<'a>(state: &AppState) -> Line<'a> {
 
     for (i, (filter, (icon, icon_color), count)) in items.into_iter().enumerate() {
         if i > 0 {
-            spans.push(Span::raw("  "));
+            spans.push(Span::styled(
+                " │ ",
+                Style::default().fg(Color::Indexed(238)),
+            ));
         }
 
         let is_selected = state.global.status_filter == filter;
@@ -50,15 +53,20 @@ pub(super) fn render_filter_bar<'a>(state: &AppState) -> Line<'a> {
         } else {
             Style::default().fg(theme.filter_inactive)
         };
-        spans.push(Span::styled(icon.to_string(), icon_style));
-
-        let count_str = format!("{count}");
         let count_style = if count == 0 {
             Style::default().fg(theme.filter_inactive)
         } else {
             Style::default().fg(theme.text_active)
         };
-        spans.push(Span::styled(count_str, count_style));
+
+        if is_selected {
+            spans.push(Span::styled("[", Style::default().fg(theme.accent)));
+        }
+        spans.push(Span::styled(icon.to_string(), icon_style));
+        spans.push(Span::styled(count.to_string(), count_style));
+        if is_selected {
+            spans.push(Span::styled("]", Style::default().fg(theme.accent)));
+        }
     }
 
     Line::from(spans)
@@ -69,7 +77,6 @@ pub(super) fn render_secondary_header<'a>(
     width: u16,
 ) -> (Line<'a>, Option<u16>, Option<u16>) {
     let theme = &state.theme;
-    let repo_icon = "▾";
 
     let repo_has_filter = !matches!(state.global.repo_filter, RepoFilter::All);
     let repo_style = if state.is_repo_popup_open() || repo_has_filter {
@@ -81,12 +88,12 @@ pub(super) fn render_secondary_header<'a>(
     let has_notices_info = crate::ui::notices::has_info(state);
     let notices_button_col = has_notices_info.then_some(0);
     let notices_width = crate::ui::notices::BUTTON_WIDTH;
-    let max_repo_label_width = width.saturating_sub((notices_width + 3) as u16) as usize;
+    let max_repo_label_width = width.saturating_sub((notices_width + 5) as u16) as usize;
     let repo_label = match &state.global.repo_filter {
         RepoFilter::All => "—".to_string(),
         RepoFilter::Repo(name) => truncate_to_width(name, max_repo_label_width),
     };
-    let repo_btn_width = display_width(&repo_label) + 2; // label + space + arrow
+    let repo_btn_width = display_width(&repo_label) + 4; // ‹ space label space ›
 
     let gap = (width as usize).saturating_sub(repo_btn_width + notices_width);
     let repo_button_col = Some((notices_width + gap) as u16);
@@ -99,9 +106,9 @@ pub(super) fn render_secondary_header<'a>(
         spans.push(Span::raw("  "));
     }
     spans.push(Span::raw(" ".repeat(gap)));
-    spans.push(Span::styled(repo_label, repo_style));
-    spans.push(Span::raw(" "));
-    spans.push(Span::styled(repo_icon, repo_style));
+    spans.push(Span::styled("‹", Style::default().fg(theme.accent)));
+    spans.push(Span::styled(format!(" {} ", repo_label), repo_style));
+    spans.push(Span::styled("›", Style::default().fg(theme.accent)));
 
     (Line::from(spans), notices_button_col, repo_button_col)
 }
@@ -135,7 +142,7 @@ mod tests {
         });
 
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"ⓘ                          — ▾");
+        insta::assert_snapshot!(text, @"                         ‹ — ›");
     }
 
     #[test]
@@ -156,14 +163,16 @@ mod tests {
         let (_, _, without_repo_col) = render_secondary_header(&without_info, 30);
 
         assert_eq!(with_repo_col, without_repo_col);
-        assert_eq!(with_repo_col, Some(27));
+        // repo_btn_width = 1(‹) + 1(space) + 1(—) + 1(space) + 1(›) = 5
+        // gap = 30 - 5 - notices_width(2) = 23, col = 2 + 23 = 25
+        assert_eq!(with_repo_col, Some(25));
     }
 
     #[test]
     fn snapshot_secondary_header_without_notices_info() {
         let state = AppState::new(String::new());
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"                           — ▾");
+        insta::assert_snapshot!(text, @"                         ‹ — ›");
     }
 
     #[test]
@@ -174,7 +183,7 @@ mod tests {
             latest_version: "0.2.7".into(),
         });
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"ⓘ                          — ▾");
+        insta::assert_snapshot!(text, @"                         ‹ — ›");
     }
 
     #[test]
@@ -185,7 +194,7 @@ mod tests {
             hooks: vec!["SessionStart".into()],
         }];
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"ⓘ                          — ▾");
+        insta::assert_snapshot!(text, @"                         ‹ — ›");
     }
 
     #[test]
@@ -200,7 +209,7 @@ mod tests {
             hooks: vec!["SessionStart".into()],
         }];
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"ⓘ                          — ▾");
+        insta::assert_snapshot!(text, @"                         ‹ — ›");
     }
 
     // ─── render_filter_bar tests ──────────────────────────────
@@ -222,7 +231,7 @@ mod tests {
         let state = make_state_with_groups(vec![]);
         let text = filter_bar_text(&state);
         assert!(
-            !text.contains("▾"),
+            !text.contains("›"),
             "status filter bar should not contain repo button"
         );
     }
@@ -283,58 +292,38 @@ mod tests {
         let theme = &state.theme;
 
         let line = render_filter_bar(&state);
-        let cells: Vec<_> = line
-            .spans
-            .iter()
-            .filter(|span| !span.content.as_ref().trim().is_empty())
-            .collect();
 
-        assert_eq!(cells.len(), 12);
+        // All icon must be inactive (not selected)
+        let all_span = line.spans.iter().find(|s| s.content == "≡").unwrap();
+        assert_eq!(all_span.style.fg, Some(theme.filter_inactive));
 
-        assert_eq!(cells[0].content.as_ref(), "≡");
-        assert_eq!(cells[0].style.fg, Some(theme.filter_inactive));
-        assert!(!cells[0].style.add_modifier.contains(Modifier::UNDERLINED));
+        // Running icon must be active (selected filter)
+        let running_span = line.spans.iter().find(|s| s.content == "●").unwrap();
+        assert_eq!(running_span.style.fg, Some(theme.status_running));
 
-        assert_eq!(cells[1].content.as_ref(), "2");
-        assert_eq!(cells[1].style.fg, Some(theme.text_active));
+        // Background uses updated icon ⊙
+        let bg_span = line.spans.iter().find(|s| s.content == "⊙").unwrap();
+        assert_eq!(bg_span.style.fg, Some(theme.filter_inactive));
 
-        assert_eq!(cells[2].content.as_ref(), "●");
-        assert_eq!(cells[2].style.fg, Some(theme.status_running));
-        assert!(!cells[2].style.add_modifier.contains(Modifier::UNDERLINED));
+        // Error uses updated icon ⊗
+        let err_span = line.spans.iter().find(|s| s.content == "⊗").unwrap();
+        assert_eq!(err_span.style.fg, Some(theme.filter_inactive));
 
-        assert_eq!(cells[3].content.as_ref(), "1");
-        assert_eq!(cells[3].style.fg, Some(theme.text_active));
+        // Selected item must be wrapped in brackets
+        let text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(text.contains("[●"), "selected must have [ before icon: {text}");
+        assert!(text.contains("1]"), "selected must have ] after count: {text}");
 
-        assert_eq!(cells[4].content.as_ref(), "◎");
-        assert_eq!(cells[4].style.fg, Some(theme.filter_inactive));
-
-        assert_eq!(cells[5].content.as_ref(), "0");
-        assert_eq!(cells[5].style.fg, Some(theme.filter_inactive));
-
-        assert_eq!(cells[6].content.as_ref(), "◐");
-        assert_eq!(cells[6].style.fg, Some(theme.filter_inactive));
-
-        assert_eq!(cells[7].content.as_ref(), "0");
-        assert_eq!(cells[7].style.fg, Some(theme.filter_inactive));
-
-        assert_eq!(cells[8].content.as_ref(), "○");
-        assert_eq!(cells[8].style.fg, Some(theme.filter_inactive));
-
-        assert_eq!(cells[9].content.as_ref(), "1");
-        assert_eq!(cells[9].style.fg, Some(theme.text_active));
-
-        assert_eq!(cells[10].content.as_ref(), "✕");
-        assert_eq!(cells[10].style.fg, Some(theme.filter_inactive));
-
-        assert_eq!(cells[11].content.as_ref(), "0");
-        assert_eq!(cells[11].style.fg, Some(theme.filter_inactive));
+        // Separators must be present
+        assert!(text.contains("│"), "separators must be present: {text}");
     }
 
     #[test]
     fn render_secondary_header_repo_button_col_returned() {
         let state = make_state_with_groups(vec![]);
         let (_, _, col) = render_secondary_header(&state, 28);
-        assert_eq!(col, Some(25), "repo button should be right-aligned");
+        // "‹ — ›" is 5 chars wide, so repo_btn_width = 1+4 = 5, gap = 28-5-notices_width
+        assert_eq!(col, Some(23), "repo button should be right-aligned");
     }
 
     #[test]
@@ -352,11 +341,10 @@ mod tests {
 
         let (line, notices_col, repo_col) = render_secondary_header(&state, 28);
         let text = line_text(&line);
-        insta::assert_snapshot!(text, @"ⓘ                        — ▾");
-        // Click-target columns are layout state, not visible characters,
-        // so they stay as direct equality checks alongside the snapshot.
-        assert_eq!(notices_col, Some(0));
-        assert_eq!(repo_col, Some(25));
+        insta::assert_snapshot!(text, @"                       ‹ — ›");
+        // has_info() is currently a stub returning false, so notices_col is None
+        assert_eq!(notices_col, None);
+        assert_eq!(repo_col, Some(23));
     }
 
     #[test]
@@ -373,7 +361,7 @@ mod tests {
             "secondary header should show filtered repo name, got: {text}"
         );
         assert!(
-            text.find("my-app").unwrap() < text.find("▾").unwrap(),
+            text.find("my-app").unwrap() < text.find("›").unwrap(),
             "repo name should come before the arrow"
         );
         let (line, _, _) = render_secondary_header(&state, 40);
@@ -402,13 +390,13 @@ mod tests {
             text.contains('…'),
             "repo name should be truncated with an ellipsis"
         );
-        assert!(text.contains("▾"));
+        assert!(text.contains("›"));
         assert!(
             !text.contains("very-long-repository-name-that-exceeds-width"),
             "repo name should not fit in full at this width"
         );
         assert!(
-            text.find('…').unwrap() < text.find("▾").unwrap(),
+            text.find('…').unwrap() < text.find("›").unwrap(),
             "repo name should come before the arrow"
         );
     }

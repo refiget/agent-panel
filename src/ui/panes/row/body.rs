@@ -1,13 +1,11 @@
 use ratatui::{
-    style::{Modifier, Style},
+    style::Style,
     text::{Line, Span},
 };
 
 use super::ctx::RowCtx;
 use crate::tmux::PaneStatus;
-use crate::ui::text::{
-    display_width, truncate_to_width, wait_reason_label, wrap_text, wrap_text_char,
-};
+use crate::ui::text::{display_width, truncate_to_width, wait_reason_label};
 
 pub(super) fn task_progress_row(
     task_progress: Option<&crate::activity::TaskProgress>,
@@ -19,29 +17,35 @@ pub(super) fn task_progress_row(
         return None;
     }
 
-    let mut icons = String::with_capacity(progress.tasks.len() * 3);
-    for (_, status) in &progress.tasks {
-        let ch = match status {
-            TaskStatus::Completed => "✔",
-            TaskStatus::InProgress => "◼",
-            TaskStatus::Pending => "◻",
-        };
-        icons.push_str(ch);
-    }
-    let summary = format!(
-        "  {} {}/{}",
-        icons,
-        progress.completed_count(),
-        progress.total()
-    );
-    let summary_dw = display_width(&summary);
+    let completed = progress.completed_count();
+    let total = progress.total();
     let task_color = ctx.theme.task_progress;
+    let dim = ratatui::style::Color::Indexed(238);
+
+    let mut filled = String::new();
+    let mut unfilled = String::new();
+    for (_, status) in &progress.tasks {
+        match status {
+            TaskStatus::Completed => filled.push_str("✔"),
+            TaskStatus::InProgress => filled.push_str("◼"),
+            TaskStatus::Pending => unfilled.push_str("▒"),
+        }
+    }
+
+    let count = format!("  {}/{}", completed, total);
+    let count_dw = display_width(&count);
+    let filled_dw = display_width(&filled);
+    let unfilled_dw = display_width(&unfilled);
+    let total_dw = 2 + filled_dw + unfilled_dw + count_dw;
+
     Some(ctx.row_line(
-        vec![Span::styled(
-            summary,
-            ctx.apply_bg(Style::default().fg(task_color)),
-        )],
-        summary_dw,
+        vec![
+            Span::styled("  ", ctx.apply_bg(Style::default())),
+            Span::styled(filled, ctx.apply_bg(Style::default().fg(task_color))),
+            Span::styled(unfilled, ctx.apply_bg(Style::default().fg(dim))),
+            Span::styled(count, ctx.apply_bg(Style::default().fg(dim))),
+        ],
+        total_dw,
     ))
 }
 
@@ -89,20 +93,31 @@ pub(super) fn wait_reason_row(
         return None;
     }
     let reason = wait_reason_label(wait_reason);
-    let text = format!("  {}", reason);
+    let text = format!("  ◈ {}", reason);
     let text_dw = display_width(&text);
+    let amber_bg = ratatui::style::Color::Indexed(52);
     let reason_color = if matches!(status, PaneStatus::Error) {
         ctx.theme.status_error
     } else {
         ctx.theme.wait_reason
     };
-    Some(ctx.row_line(
-        vec![Span::styled(
-            text,
-            ctx.apply_bg(Style::default().fg(reason_color)),
-        )],
-        text_dw,
-    ))
+    // Build spans with amber background directly — bypass ctx.apply_bg so the
+    // amber bg always shows regardless of selection state.
+    let mut spans = Vec::with_capacity(4);
+    spans.push(Span::styled(ctx.marker_char, ctx.marker_style));
+    spans.push(Span::styled(" ", Style::default().bg(amber_bg)));
+    spans.push(Span::styled(
+        text,
+        Style::default().fg(reason_color).bg(amber_bg),
+    ));
+    let padding_len = ctx.inner_width.saturating_sub(text_dw);
+    if padding_len > 0 {
+        spans.push(Span::styled(
+            " ".repeat(padding_len),
+            Style::default().bg(amber_bg),
+        ));
+    }
+    Some(Line::from(spans))
 }
 
 pub(super) fn background_hint_row(ctx: &RowCtx, cmd: &str) -> Line<'static> {
@@ -128,46 +143,37 @@ pub(super) fn prompt_rows(pane: &crate::tmux::PaneInfo, ctx: &RowCtx) -> Vec<Lin
     } else {
         theme.text_inactive
     };
-    let wrap_width = ctx.inner_width.saturating_sub(2);
-    let wrapped = if is_response {
-        wrap_text_char(&pane.prompt, wrap_width, 3)
-    } else {
-        wrap_text(&pane.prompt, wrap_width, 3)
-    };
 
-    let mut out = Vec::with_capacity(wrapped.len());
-    for (li, wl) in wrapped.iter().enumerate() {
-        if is_response && li == 0 {
-            let arrow_color = theme.response_arrow;
-            let text_dw = 2 + display_width(wl); // "▷ " width
-            out.push(ctx.row_line(
-                vec![
-                    Span::styled(
-                        "▷ ",
-                        ctx.apply_bg(
-                            Style::default()
-                                .fg(arrow_color)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                    ),
-                    Span::styled(wl.clone(), ctx.apply_bg(Style::default().fg(prompt_color))),
-                ],
-                text_dw,
-            ));
-        } else {
-            let indent = "  ";
-            let text = format!("{}{}", indent, wl);
-            let text_dw = display_width(&text);
-            out.push(ctx.row_line(
-                vec![Span::styled(
-                    text,
-                    ctx.apply_bg(Style::default().fg(prompt_color)),
-                )],
-                text_dw,
-            ));
-        }
+    if is_response {
+        let bg = ratatui::style::Color::Indexed(22);
+        let fg = ratatui::style::Color::Indexed(238);
+        let arrow_color = ratatui::style::Color::Indexed(71);
+        let prefix = "← ";
+        let prefix_dw = display_width(prefix);
+        let budget = ctx.inner_width.saturating_sub(2 + prefix_dw);
+        let truncated = truncate_to_width(&pane.prompt, budget);
+        let text_dw = prefix_dw + display_width(&truncated);
+        return vec![ctx.row_line(
+            vec![
+                Span::styled(prefix.to_string(), Style::default().fg(arrow_color).bg(bg)),
+                Span::styled(truncated, Style::default().fg(fg).bg(bg)),
+            ],
+            text_dw,
+        )];
     }
-    out
+
+    let indent = "  ";
+    let budget = ctx.inner_width.saturating_sub(display_width(indent));
+    let truncated = truncate_to_width(&pane.prompt, budget);
+    let text = format!("{}{}", indent, truncated);
+    let text_dw = display_width(&text);
+    vec![ctx.row_line(
+        vec![Span::styled(
+            text,
+            ctx.apply_bg(Style::default().fg(prompt_color)),
+        )],
+        text_dw,
+    )]
 }
 
 pub(super) fn idle_hint_row(ctx: &RowCtx) -> Line<'static> {

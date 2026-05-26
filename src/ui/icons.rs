@@ -19,10 +19,10 @@ impl Default for StatusIcons {
         Self {
             all: "≡".into(),
             running: "●".into(),
-            background: "◎".into(),
+            background: "⊙".into(),
             waiting: "◐".into(),
             idle: "○".into(),
-            error: "✕".into(),
+            error: "⊗".into(),
             unknown: "·".into(),
         }
     }
@@ -83,10 +83,10 @@ mod tests {
         let icons = StatusIcons::default();
         assert_eq!(icons.all_icon(), "≡");
         assert_eq!(icons.status_icon(&PaneStatus::Running), "●");
-        assert_eq!(icons.status_icon(&PaneStatus::Background), "◎");
+        assert_eq!(icons.status_icon(&PaneStatus::Background), "⊙");
         assert_eq!(icons.status_icon(&PaneStatus::Waiting), "◐");
         assert_eq!(icons.status_icon(&PaneStatus::Idle), "○");
-        assert_eq!(icons.status_icon(&PaneStatus::Error), "✕");
+        assert_eq!(icons.status_icon(&PaneStatus::Error), "⊗");
         assert_eq!(icons.status_icon(&PaneStatus::Unknown), "·");
     }
 

@@ -5,22 +5,19 @@ use ratatui::{
 
 use super::ctx::RowCtx;
 use crate::tmux::PaneStatus;
-use crate::ui::icons::StatusIcons;
 use crate::ui::text::{display_width, elapsed_label, truncate_to_width};
+use crate::{ATTN_PULSE, BG_PULSE, RUNNING_GLYPHS, SPINNER_PULSE, WAITING_GLYPHS, WAITING_PULSE};
 
 pub(super) fn status_row(
     pane: &crate::tmux::PaneInfo,
     ctx: &RowCtx,
-    icons: &StatusIcons,
     spinner_frame: usize,
     now: u64,
 ) -> Line<'static> {
     use crate::tmux::PermissionMode;
     let theme = ctx.theme;
 
-    let (icon, pulse_color) = running_icon_for(&pane.status, spinner_frame, icons);
-    let icon_color =
-        pulse_color.unwrap_or_else(|| theme.status_color(&pane.status, pane.attention));
+    let (icon, icon_color) = animated_icon(&pane.status, pane.attention, spinner_frame);
     let title_raw: &str = if pane.session_name.is_empty() {
         pane.agent.label()
     } else {
@@ -38,10 +35,6 @@ pub(super) fn status_row(
 
     let badge_extra = if badge.is_empty() { 0 } else { 1 };
     let fixed_width = display_width(icon) + 1 + badge_extra + display_width(badge);
-    // User-supplied session names (set via `/rename`) can be arbitrarily
-    // long; cap the title to the space left after reserving room for the
-    // icon, badge, and elapsed label so they stay visible instead of
-    // being pushed off-screen.
     let elapsed_width = display_width(&elapsed);
     let elapsed_gap = usize::from(elapsed_width > 0);
     let title_budget = ctx
@@ -87,18 +80,72 @@ pub(super) fn status_row(
     ctx.row_line_split(left_spans, left_width, right_spans, elapsed_width)
 }
 
-pub(super) fn running_icon_for<'a>(
+pub(super) fn animated_icon(
     status: &PaneStatus,
-    spinner_frame: usize,
-    icons: &'a StatusIcons,
-) -> (&'a str, Option<Color>) {
-    use crate::SPINNER_PULSE;
-
+    attention: bool,
+    frame: usize,
+) -> (&'static str, Color) {
+    if attention {
+        return ("◉", Color::Indexed(ATTN_PULSE[frame % 2]));
+    }
     match status {
-        PaneStatus::Running => {
-            let color_idx = SPINNER_PULSE[spinner_frame % SPINNER_PULSE.len()];
-            (icons.status_icon(status), Some(Color::Indexed(color_idx)))
-        }
-        _ => (icons.status_icon(status), None),
+        PaneStatus::Running => (
+            RUNNING_GLYPHS[frame % RUNNING_GLYPHS.len()],
+            Color::Indexed(SPINNER_PULSE[frame % SPINNER_PULSE.len()]),
+        ),
+        PaneStatus::Background => ("⊙", Color::Indexed(BG_PULSE[frame % 2])),
+        PaneStatus::Waiting => (
+            WAITING_GLYPHS[(frame / 2) % WAITING_GLYPHS.len()],
+            Color::Indexed(WAITING_PULSE[(frame / 2) % WAITING_PULSE.len()]),
+        ),
+        PaneStatus::Idle => ("○", Color::Indexed(236)),
+        PaneStatus::Error => ("⊗", Color::Indexed(203)),
+        PaneStatus::Unknown => ("·", Color::Indexed(235)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn animated_icon_attention_overrides_any_status() {
+        let (glyph, _) = animated_icon(&PaneStatus::Idle, true, 0);
+        assert_eq!(glyph, "◉");
+        let (glyph, _) = animated_icon(&PaneStatus::Running, true, 0);
+        assert_eq!(glyph, "◉");
+    }
+
+    #[test]
+    fn animated_icon_running_cycles_braille_glyphs() {
+        let (g0, _) = animated_icon(&PaneStatus::Running, false, 0);
+        let (g1, _) = animated_icon(&PaneStatus::Running, false, 1);
+        assert_eq!(g0, "⠋");
+        assert_eq!(g1, "⠙");
+    }
+
+    #[test]
+    fn animated_icon_waiting_uses_half_speed() {
+        let (g0, _) = animated_icon(&PaneStatus::Waiting, false, 0);
+        let (g1, _) = animated_icon(&PaneStatus::Waiting, false, 1);
+        assert_eq!(g0, g1, "waiting advances every 2 frames");
+        let (g2, _) = animated_icon(&PaneStatus::Waiting, false, 2);
+        assert_ne!(g0, g2, "waiting must advance at frame 2");
+    }
+
+    #[test]
+    fn animated_icon_static_statuses() {
+        let (idle, _) = animated_icon(&PaneStatus::Idle, false, 0);
+        let (err, _) = animated_icon(&PaneStatus::Error, false, 0);
+        let (unk, _) = animated_icon(&PaneStatus::Unknown, false, 0);
+        assert_eq!(idle, "○");
+        assert_eq!(err, "⊗");
+        assert_eq!(unk, "·");
+    }
+
+    #[test]
+    fn animated_icon_background_uses_ring_glyph() {
+        let (bg, _) = animated_icon(&PaneStatus::Background, false, 0);
+        assert_eq!(bg, "⊙");
     }
 }

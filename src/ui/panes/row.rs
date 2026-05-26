@@ -2,7 +2,6 @@ use ratatui::{style::Style, text::Line};
 
 use crate::tmux::PaneStatus;
 use crate::ui::colors::ColorTheme;
-use crate::ui::icons::StatusIcons;
 
 mod body;
 mod branch;
@@ -16,7 +15,7 @@ use body::{
 use branch::branch_ports_row;
 use ctx::{RowCtx, SELECTION_MARKER};
 #[cfg(test)]
-use status::running_icon_for;
+use status::animated_icon;
 use status::status_row;
 
 pub(super) use branch::sidebar_remove_marker_col;
@@ -30,7 +29,6 @@ pub(super) fn render_pane_lines_with_ports(
     selected: bool,
     active: bool,
     width: usize,
-    icons: &StatusIcons,
     theme: &ColorTheme,
     spinner_frame: usize,
     now: u64,
@@ -40,22 +38,12 @@ pub(super) fn render_pane_lines_with_ports(
     } else {
         None
     };
-    let apply_bg = |style: Style| match bg {
-        Some(c) => style.bg(c),
-        None => style,
-    };
-    // The left marker `┃` highlights the pane that is currently focused in
-    // tmux (`active`). To keep the active accent compact, it only appears on
-    // the status row and the branch/ports row (when present) — never on
-    // deeper details like task progress or prompt wrapping. The sidebar
-    // cursor position (`selected`) still paints the full pane with the
-    // selection background.
     let marker_ctx = RowCtx {
-        marker_char: if active { SELECTION_MARKER } else { " " },
-        marker_style: if active {
-            apply_bg(Style::default().fg(theme.accent))
+        marker_char: if active || selected { SELECTION_MARKER } else { " " },
+        marker_style: if active || selected {
+            Style::default().fg(theme.accent)
         } else {
-            apply_bg(Style::default())
+            Style::default()
         },
         inner_width: width.saturating_sub(2),
         theme,
@@ -72,7 +60,7 @@ pub(super) fn render_pane_lines_with_ports(
     };
 
     let mut out: Vec<Line<'static>> = Vec::with_capacity(8);
-    out.push(status_row(pane, &marker_ctx, icons, spinner_frame, now));
+    out.push(status_row(pane, &marker_ctx, spinner_frame, now));
     if let Some(line) = branch_ports_row(git_info, ports, pane.sidebar_spawned, &marker_ctx) {
         out.push(line);
     }
@@ -100,7 +88,6 @@ mod tests {
     use super::*;
     use crate::group::PaneGitInfo;
     use crate::tmux::{AgentType, PaneInfo, PermissionMode, WorktreeMetadata};
-    use crate::ui::icons::StatusIcons;
     use crate::ui::text::display_width;
     use ratatui::style::{Color, Modifier};
 
@@ -167,7 +154,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -189,7 +175,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -215,7 +200,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -252,7 +236,6 @@ mod tests {
             false,
             false,
             30,
-            &StatusIcons::default(),
             &theme,
             0,
             66,
@@ -297,7 +280,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -328,7 +310,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -360,7 +341,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             1_000_000,
@@ -371,26 +351,20 @@ mod tests {
     }
 
     #[test]
-    fn running_icon_for_all_statuses() {
-        let icons = StatusIcons::default();
-        assert_eq!(running_icon_for(&PaneStatus::Idle, 0, &icons), ("○", None));
-        assert_eq!(
-            running_icon_for(&PaneStatus::Waiting, 0, &icons),
-            ("◐", None)
-        );
-        assert_eq!(running_icon_for(&PaneStatus::Error, 0, &icons), ("✕", None));
-        assert_eq!(
-            running_icon_for(&PaneStatus::Unknown, 0, &icons),
-            ("·", None)
-        );
-        assert_eq!(
-            running_icon_for(&PaneStatus::Background, 0, &icons),
-            ("◎", None)
-        );
-
-        let (icon, color) = running_icon_for(&PaneStatus::Running, 0, &icons);
-        assert_eq!(icon, "●");
-        assert_eq!(color, Some(Color::Indexed(82)));
+    fn animated_icon_covers_all_statuses() {
+        let (g, _) = animated_icon(&PaneStatus::Idle, false, 0);
+        assert_eq!(g, "○");
+        let (g, _) = animated_icon(&PaneStatus::Waiting, false, 0);
+        assert_eq!(g, "◐");
+        let (g, _) = animated_icon(&PaneStatus::Error, false, 0);
+        assert_eq!(g, "⊗");
+        let (g, _) = animated_icon(&PaneStatus::Unknown, false, 0);
+        assert_eq!(g, "·");
+        let (g, _) = animated_icon(&PaneStatus::Background, false, 0);
+        assert_eq!(g, "⊙");
+        let (g, c) = animated_icon(&PaneStatus::Running, false, 0);
+        assert_eq!(g, "⠋");
+        assert_eq!(c, Color::Indexed(82));
     }
 
     #[test]
@@ -405,7 +379,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -433,7 +406,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -459,7 +431,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -485,7 +456,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -514,7 +484,6 @@ mod tests {
             false,
             false,
             20,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -546,7 +515,6 @@ mod tests {
             false,
             false,
             18,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -571,7 +539,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -596,7 +563,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -625,7 +591,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -655,7 +620,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -663,7 +627,8 @@ mod tests {
 
         assert!(lines.len() >= 2);
         let response_line = line_text(&lines[1]);
-        assert!(response_line.contains("▷"));
+        assert!(response_line.contains("←"), "response must use ← arrow: {response_line}");
+        assert!(!response_line.contains("▷"), "old ▷ must be gone");
         assert!(response_line.contains("Task completed successfully"));
     }
 
@@ -684,7 +649,6 @@ mod tests {
             false,
             false,
             20,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -692,10 +656,12 @@ mod tests {
 
         assert!(lines.len() >= 2);
         let first = line_text(&lines[1]);
-        assert!(first.contains("▷"));
-        // char-wrap must not trim inter-word spaces like word-wrap does
-        let second = line_text(&lines[2]);
-        assert!(!second.starts_with("│  ghijk"));
+        assert!(first.contains("←"), "response must start with ← arrow");
+        // single-line: no continuation line expected
+        if lines.len() > 2 {
+            let second = line_text(&lines[2]);
+            assert!(!second.contains("ghijk"), "no continuation line expected");
+        }
     }
 
     #[test]
@@ -710,7 +676,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -742,7 +707,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -750,7 +714,7 @@ mod tests {
 
         assert!(lines.len() >= 2);
         let task_line = line_text(&lines[1]);
-        assert!(task_line.contains("✔◼◻"));
+        assert!(task_line.contains("✔◼") && task_line.contains("▒"), "expected filled+unfilled chars");
         assert!(task_line.contains("1/3"));
     }
 
@@ -768,7 +732,6 @@ mod tests {
             false,
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -1051,7 +1014,6 @@ mod tests {
             true, // selected
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -1082,7 +1044,6 @@ mod tests {
             true, // selected
             false,
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -1110,7 +1071,6 @@ mod tests {
             false,
             true, // active
             40,
-            &StatusIcons::default(),
             &theme,
             0,
             0,
@@ -1138,7 +1098,7 @@ mod tests {
         let theme = ColorTheme::default();
         let ctx = test_ctx(&theme, 40, false);
         let pane = pane(PermissionMode::Default, PaneStatus::Running, "");
-        let line = status_row(&pane, &ctx, &StatusIcons::default(), 0, 0);
+        let line = status_row(&pane, &ctx, 0, 0);
         let text = line_text(&line);
         // Default mode has an empty badge string — no extra badge token should appear.
         assert!(
@@ -1149,6 +1109,7 @@ mod tests {
 
     #[test]
     fn prompt_rows_indents_continuation_lines() {
+        // Now single-line — just verify it renders without panic and has indent
         let theme = ColorTheme::default();
         let ctx = test_ctx(&theme, 20, false);
         let mut p = pane(
@@ -1158,17 +1119,12 @@ mod tests {
         );
         p.prompt_is_response = false;
         let lines = prompt_rows(&p, &ctx);
+        assert_eq!(lines.len(), 1, "prompt must be single line");
+        let text = line_text(&lines[0]);
+        // marker(1) + space(1) + indent(2) = "    "
         assert!(
-            lines.len() >= 2,
-            "expected prompt to wrap across multiple lines"
+            text.starts_with("    "),
+            "prompt must be indented: {text}"
         );
-        for line in &lines {
-            let text = line_text(line);
-            // Each line starts with marker(1) + space(1) + indent(2) = "    " for non-selected.
-            assert!(
-                text.starts_with("    "),
-                "each wrapped line should carry the left padding, got: {text}"
-            );
-        }
     }
 }

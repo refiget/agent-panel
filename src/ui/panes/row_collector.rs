@@ -67,26 +67,32 @@ pub(super) fn collect(state: &AppState, width: u16) -> CollectedRows {
             .iter()
             .find_map(|(_, git)| git.repo_root.clone());
         let spans: Vec<Span<'static>> = if let Some(ref root) = repo_root {
-            let title_w = display_width(title);
-            let pad_width = width
-                .saturating_sub(title_w)
-                .saturating_sub(SPAWN_BUTTON.len());
+            let title_upper = title.to_uppercase();
+            let title_w = display_width(&title_upper);
+            // "── " + title + " " + fill + " +"
+            let reserved = 3 + title_w + 3;
+            let fill_w = width.saturating_sub(reserved);
+            let fill = "─".repeat(fill_w);
             collected
                 .pending_spawn
                 .push((collected.lines.len(), group.name.clone(), root.clone()));
+            let dim = Style::default().fg(ratatui::style::Color::Indexed(238));
             let button_color = if group_has_focused_pane {
                 theme.accent
             } else {
                 theme.text_active
             };
             vec![
-                Span::styled(title.clone(), Style::default().fg(title_color)),
-                Span::raw(" ".repeat(pad_width)),
+                Span::styled("── ", dim),
+                Span::styled(title_upper, Style::default().fg(title_color)),
+                Span::styled(format!(" {}", fill), dim),
+                Span::styled(" ", dim),
                 Span::styled(SPAWN_BUTTON, Style::default().fg(button_color)),
             ]
         } else {
+            let title_upper = title.to_uppercase();
             vec![Span::styled(
-                title.clone(),
+                title_upper,
                 Style::default().fg(title_color),
             )]
         };
@@ -112,7 +118,6 @@ pub(super) fn collect(state: &AppState, width: u16) -> CollectedRows {
                 is_selected,
                 is_active,
                 width,
-                &state.icons,
                 theme,
                 state.spinner_frame,
                 state.now,
