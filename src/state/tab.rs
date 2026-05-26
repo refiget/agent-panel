@@ -4,7 +4,7 @@ impl AppState {
     /// Auto-switch bottom tab based on the focused pane.
     ///
     /// - Focus changed → save old pane's tab, restore new pane's tab
-    /// - New agent pane (first seen) → Activity tab (once only)
+    /// - New agent pane (first seen) → Git tab (once only)
     /// - Non-agent pane with no saved pref → Git tab
     pub(crate) fn auto_switch_tab(&mut self) {
         let focus_changed =
@@ -46,7 +46,7 @@ impl AppState {
             && new_agent_pane_ids.contains(fid)
         {
             // Agent started in the currently focused pane.
-            return TabDecision::Set(BottomTab::Activity);
+            return TabDecision::Set(BottomTab::GitStatus);
         }
 
         TabDecision::Keep
@@ -109,7 +109,7 @@ impl AppState {
             TabDecision::Set(saved.clone())
         } else if new_agent_pane_ids.contains(cur_id) || self.focused_pane_is_agent() {
             // The focused pane is an agent, and there's no saved preference yet.
-            TabDecision::Set(BottomTab::Activity)
+            TabDecision::Set(BottomTab::GitStatus)
         } else {
             TabDecision::Set(BottomTab::GitStatus)
         }
@@ -126,32 +126,17 @@ impl AppState {
     }
 
     pub fn next_bottom_tab(&mut self) {
-        self.bottom_tab = match self.bottom_tab {
-            BottomTab::Activity => BottomTab::GitStatus,
-            BottomTab::GitStatus => BottomTab::Activity,
-        };
+        self.bottom_tab = BottomTab::GitStatus;
     }
 
     /// Handle mouse click on the bottom panel tab header.
-    /// Tab title layout: "╭ Activity │ Git ╮" — col is relative to the terminal.
-    /// The block border starts at col 0, so the title text starts at col 1.
-    /// " Activity " spans cols 1..11, "│" at col 11, " Git " spans cols 12..17.
-    pub fn handle_bottom_tab_click(&mut self, col: u16) {
-        // Offset by 1 for the left border character
-        let x = col.saturating_sub(1) as usize;
-        // " Activity " = 10 chars (0..10), "│" = 1 char (10), " Git " = 5 chars (11..16)
-        if x < 10 {
-            self.bottom_tab = BottomTab::Activity;
-        } else if (11..16).contains(&x) {
-            self.bottom_tab = BottomTab::GitStatus;
-        }
+    pub fn handle_bottom_tab_click(&mut self, _col: u16) {
+        self.bottom_tab = BottomTab::GitStatus;
     }
 
     pub fn scroll_bottom(&mut self, delta: isize) {
-        match self.bottom_tab {
-            BottomTab::Activity => self.activity.scroll.scroll(delta),
-            BottomTab::GitStatus => self.scrolls.git.scroll(delta),
-        }
+        self.bottom_tab = BottomTab::GitStatus;
+        self.scrolls.git.scroll(delta);
     }
 }
 

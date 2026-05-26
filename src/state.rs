@@ -23,7 +23,6 @@ pub use filter::{RepoFilter, StatusFilter};
 pub use focus::{Focus, FocusState};
 pub use global::GlobalState;
 pub use layout::{FrameLayout, HyperlinkOverlay, RepoSpawnTarget, RowTarget, SpawnRemoveTarget};
-pub(crate) use notices::debug_forced_display;
 pub use notices::{ClaudePluginNotice, NoticesCopyTarget, NoticesMissingHookGroup, NoticesState};
 pub use pane_runtime::{PaneRuntimeMap, PaneRuntimeState};
 pub use popup::{PopupState, SpawnField};
@@ -150,7 +149,7 @@ impl AppState {
             scrolls: ScrollStates::default(),
             theme: ColorTheme::default(),
             icons: StatusIcons::default(),
-            bottom_tab: BottomTab::Activity,
+            bottom_tab: BottomTab::GitStatus,
             git: crate::git::GitData::default(),
             pane_states: PaneRuntimeMap::new(),
             timers: RefreshTimers::default(),

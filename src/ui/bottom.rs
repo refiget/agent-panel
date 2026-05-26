@@ -1,4 +1,3 @@
-mod activity;
 mod git;
 
 use ratatui::{
@@ -9,7 +8,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::state::{AppState, BottomTab, Focus};
+use crate::state::{AppState, Focus};
 
 use super::text::display_width;
 
@@ -47,11 +46,16 @@ pub fn draw_bottom(frame: &mut Frame, state: &mut AppState, area: Rect) {
         .iter()
         .map(|span| display_width(&span.content))
         .sum::<usize>();
-    let top_fill_len = (area.width as usize).saturating_sub(title_dw + 4);
-    let mut top_line_spans = vec![Span::styled("╭ ", Style::default().fg(border_color))];
+    let fill_len = (area.width as usize).saturating_sub(title_dw + 4);
+    let left_fill_len = fill_len / 2;
+    let right_fill_len = fill_len.saturating_sub(left_fill_len);
+    let mut top_line_spans = vec![Span::styled(
+        format!("╭{} ", "─".repeat(left_fill_len)),
+        Style::default().fg(border_color),
+    )];
     top_line_spans.extend(title_spans);
     top_line_spans.push(Span::styled(
-        format!(" {}╮", "─".repeat(top_fill_len)),
+        format!(" {}╮", "─".repeat(right_fill_len)),
         Style::default().fg(border_color),
     ));
     let top_line = Line::from(top_line_spans);
@@ -70,33 +74,12 @@ pub fn draw_bottom(frame: &mut Frame, state: &mut AppState, area: Rect) {
     );
     frame.render_widget(Paragraph::new(bottom_line), bottom_rect);
 
-    match state.bottom_tab {
-        BottomTab::Activity => activity::draw_activity_content(frame, state, inner),
-        BottomTab::GitStatus => git::draw_git_content(frame, state, inner),
-    }
+    git::draw_git_content(frame, state, inner);
 }
 
 fn build_tab_title(state: &AppState) -> Line<'static> {
     let theme = &state.theme;
-    let activity_style = if state.bottom_tab == BottomTab::Activity {
-        Style::default().fg(theme.accent)
-    } else {
-        Style::default().fg(theme.text_muted)
-    };
-
-    let git_style = if state.bottom_tab == BottomTab::GitStatus {
-        Style::default().fg(theme.accent)
-    } else {
-        Style::default().fg(theme.text_muted)
-    };
-
-    let sep_style = Style::default().fg(theme.border_inactive);
-
-    Line::from(vec![
-        Span::styled("Activity", activity_style),
-        Span::styled(" \u{2502} ", sep_style),
-        Span::styled("Git", git_style),
-    ])
+    Line::from(vec![Span::styled("Git", Style::default().fg(theme.accent))])
 }
 
 #[cfg(test)]

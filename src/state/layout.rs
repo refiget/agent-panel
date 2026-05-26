@@ -163,14 +163,6 @@ impl AppState {
     /// The repo filter button lives on the far right of this row.
     pub fn handle_secondary_header_click(&mut self, col: u16) {
         if self
-            .notices
-            .button_col
-            .is_some_and(|notices_col| col == notices_col)
-        {
-            self.toggle_notices_popup();
-            return;
-        }
-        if self
             .layout
             .repo_button_col
             .is_some_and(|repo_button_col| col >= repo_button_col)
@@ -183,18 +175,6 @@ impl AppState {
     /// via line_to_row (adjusted for scroll offset) and activates that pane.
     /// Row 0 is the fixed filter bar, row 1+ maps to the scrollable agent list.
     pub fn handle_mouse_click(&mut self, row: u16, col: u16) {
-        if self.is_notices_popup_open() {
-            if let Some(area) = self.notices_popup_area()
-                && point_in_rect(row, col, area)
-            {
-                if let Some(agent) = self.notices_copy_target_at(row, col).map(str::to_string) {
-                    self.copy_notices_prompt(&agent);
-                }
-                return;
-            }
-            self.close_notices_popup();
-            return;
-        }
         if self.is_repo_popup_open() {
             if let Some(area) = self.repo_popup_area()
                 && point_in_rect(row, col, area)
