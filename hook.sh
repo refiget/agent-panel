@@ -40,4 +40,13 @@ elif command -v tmux-agent-sidebar &>/dev/null; then
 else
   exit 0
 fi
-exec "$BIN" hook "$@"
+
+"$BIN" hook "$@"
+status=$?
+
+BELL_REFRESH="$HOME/.config/tmux/scripts/status/agent_window_bell.sh"
+if [ -x "$BELL_REFRESH" ]; then
+  "$BELL_REFRESH" >/dev/null 2>&1 || true
+fi
+
+exit "$status"
