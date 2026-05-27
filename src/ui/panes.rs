@@ -564,7 +564,7 @@ pub fn draw_agents(frame: &mut Frame, state: &mut AppState, area: Rect) {
     );
     render_pane_rows(frame, lines, scroll_offset, layout.list_area);
 
-    render_flash_banner_into(frame, state, area);
+    render_flash_banner_into(frame, state, inner);
     popups::render_if_open(frame, state, area);
 }
 
