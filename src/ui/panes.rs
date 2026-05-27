@@ -458,8 +458,8 @@ fn render_filter_bar_into(frame: &mut Frame, state: &AppState, area: Rect) {
 fn render_secondary_header_into(frame: &mut Frame, state: &mut AppState, area: Rect) {
     let (line, notices_btn_col, repo_btn_col) =
         filter_bar::render_secondary_header(state, area.width);
-    state.notices.button_col = notices_btn_col;
-    state.layout.repo_button_col = repo_btn_col;
+    state.notices.button_col = notices_btn_col.map(|c| c + area.x);
+    state.layout.repo_button_col = repo_btn_col.map(|c| c + area.x);
     frame.render_widget(Paragraph::new(vec![line]), area);
 }
 
@@ -657,6 +657,21 @@ mod tests {
 
         assert_eq!(compute_scroll_offset(&mut state, 3, list_area), 0);
         assert_eq!(state.scrolls.panes.offset, 0);
+    }
+
+    #[test]
+    fn render_secondary_header_into_stores_absolute_col_with_area_x_offset() {
+        // When secondary_area starts at x=1 (block inner rect), the stored
+        // repo_button_col must be relative to screen 0, i.e. include the +1 offset.
+        let state = crate::state::AppState::new("%0".into());
+
+        let area = Rect { x: 5, y: 0, width: 30, height: 1 };
+        let (_, _, col) = filter_bar::render_secondary_header(&state, area.width);
+        let stored = col.map(|c| c + area.x);
+        // Stored value must be >= area.x (button can't be left of border)
+        if let Some(c) = stored {
+            assert!(c >= area.x, "button col {c} must be >= area.x {}", area.x);
+        }
     }
 
     #[test]
