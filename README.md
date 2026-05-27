@@ -3,7 +3,7 @@
 <p align="center">A tmux TUI that tracks every Claude Code, Codex, and OpenCode pane across every session and window. See status, background shells, prompts, Git state, activity, and worktrees in a floating window.</p>
 
 <p align="center">
-  <img src="docs/screenshots/floating-popup.png" alt="tmux-agent-sidebar floating popup" width="800" />
+  <img src="docs/screenshots/full-screen-preview.png" alt="tmux-agent-sidebar full-screen preview" width="800" />
 </p>
 
 ---
@@ -11,6 +11,10 @@
 ## 🚀 Floating Window TUI
 
 This fork transforms the persistent sidebar into a **disposable floating window**. Toggle it instantly when you need to check agent status, then dismiss it to keep your workspace clean.
+
+<p align="center">
+  <img src="docs/screenshots/floating-popup.png" alt="tmux-agent-sidebar floating popup" width="800" />
+</p>
 
 ### Features
 
