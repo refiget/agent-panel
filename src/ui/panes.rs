@@ -441,6 +441,29 @@ fn render_separator_into(frame: &mut Frame, state: &AppState, area: Rect) {
     );
 }
 
+fn draw_inner_divider(
+    buf: &mut ratatui::buffer::Buffer,
+    outer: Rect,
+    inner: Rect,
+    row_y: u16,
+    style: Style,
+) {
+    if let Some(cell) = buf.cell_mut((outer.x, row_y)) {
+        cell.set_char('├');
+        cell.set_style(style);
+    }
+    for x in inner.x..(inner.x + inner.width) {
+        if let Some(cell) = buf.cell_mut((x, row_y)) {
+            cell.set_char('─');
+            cell.set_style(style);
+        }
+    }
+    if let Some(cell) = buf.cell_mut((outer.x + outer.width - 1, row_y)) {
+        cell.set_char('┤');
+        cell.set_style(style);
+    }
+}
+
 fn render_filter_bar_into(frame: &mut Frame, state: &AppState, area: Rect) {
     let line = filter_bar::render_filter_bar(state);
     frame.render_widget(Paragraph::new(vec![line]), area);
@@ -633,5 +656,29 @@ mod tests {
 
         assert_eq!(compute_scroll_offset(&mut state, 3, list_area), 0);
         assert_eq!(state.scrolls.panes.offset, 0);
+    }
+
+    #[test]
+    fn draw_inner_divider_writes_correct_box_chars() {
+        use ratatui::buffer::Buffer;
+        use ratatui::style::Style;
+
+        // Outer: 10 wide, 5 tall at (0,0). Inner (block inner): x=1, w=8.
+        let outer = Rect { x: 0, y: 0, width: 10, height: 5 };
+        let inner = Rect { x: 1, y: 1, width: 8, height: 3 };
+        let mut buf = Buffer::empty(outer);
+        let style = Style::default().fg(ratatui::style::Color::Indexed(153));
+
+        draw_inner_divider(&mut buf, outer, inner, 2, style);
+
+        // left junction
+        assert_eq!(buf[(0u16, 2u16)].symbol(), "├");
+        // inner fill
+        assert_eq!(buf[(1u16, 2u16)].symbol(), "─");
+        assert_eq!(buf[(8u16, 2u16)].symbol(), "─");
+        // right junction
+        assert_eq!(buf[(9u16, 2u16)].symbol(), "┤");
+        // row above untouched (default '─' only at y=2)
+        assert_eq!(buf[(0u16, 1u16)].symbol(), " ");
     }
 }
