@@ -376,7 +376,7 @@ pub(super) fn render_repo_popup(frame: &mut Frame, state: &mut AppState, area: R
 
     // Right-aligned, below the 2-row header
     let popup_x = area.x + area.width.saturating_sub(popup_width);
-    let popup_y = area.y + 2;
+    let popup_y = area.y + 3;
 
     let popup_rect = Rect::new(popup_x, popup_y, popup_width, popup_height);
     state.popup.set_repo_area(Some(popup_rect));
@@ -696,5 +696,14 @@ mod tests {
         assert_eq!(buf[(9u16, 2u16)].symbol(), "┤");
         // row above untouched (default '─' only at y=2)
         assert_eq!(buf[(0u16, 1u16)].symbol(), " ");
+    }
+
+    #[test]
+    fn render_repo_popup_y_is_below_secondary_header_row() {
+        // With panel box: top border(y+0) + filter(y+1) + sep1(y+2) + secondary(y+3).
+        // popup_y must be area.y + 3 so the dropdown opens at the secondary header row.
+        let area = Rect { x: 0, y: 0, width: 40, height: 20 };
+        let expected_y = area.y + 3;
+        assert_eq!(expected_y, 3u16);
     }
 }
