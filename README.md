@@ -10,7 +10,7 @@
 
 ## 🚀 简洁的 tmux 浮窗 Agent 面板
 
-一个简洁的 tmux 浮窗面板，用于实时监控所有 Agent 的运行状态，并支持快速跳转到对应的 pane。
+一个简洁的 tmux 浮窗面板，用于实时监控所有 Agent 的运行状态，并支持快速跳转到对应的 pane。该面板也可作为独立的 TUI 应用在终端中直接运行。
 
 <p align="center">
   <img src="docs/screenshots/floating-popup.png" alt="tmux-agent-sidebar floating popup" width="800" />
