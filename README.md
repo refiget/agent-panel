@@ -26,18 +26,6 @@
 
 - **状态监控** — 汇总显示所有会话中的 Agent 状态、提示词及任务进度。
 - **快速跳转** — 在面板中直接选中并跳转到目标 Agent 所在的窗口或面板。
-- **Git & Worktrees** — 在 TUI 中直接管理工作树并查看 Git 状态。
-
----
-
-## 🛠️ Usage
-
-Bind a key to toggle the floating TUI in your `tmux.conf`:
-
-```tmux
-# Toggle floating sidebar (90% width/height)
-bind e display-popup -EE -w 90% -h 90% "tmux-agent-sidebar"
-```
 
 ---
 
