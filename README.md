@@ -1,14 +1,14 @@
 <h1 align="center">agent-panel</h1>
 
 <p align="center">
-  <img src="docs/screenshots/full-screen-preview.png" alt="tmux-agent-sidebar full-screen preview" width="800" />
+  <img src="docs/screenshots/full-screen-preview.png" alt="agent-panel full-screen preview" width="800" />
 </p>
 
 ---
 
-## 🔔 tmux window 状态提醒
+## 🔔 tmux window status alerts
 
-集成 tmux window bell 机制。当 Agent 需要确认或任务完成时，tmux 状态栏会显示提醒标识，聚焦到对应面板后自动消除。
+Integrated with the tmux window bell mechanism. When an Agent requires attention or finishes a task, an alert indicator appears in the tmux status bar. The alert is automatically cleared upon focusing the corresponding pane.
 
 <p align="center">
   <img src="docs/screenshots/bell-notification.png" alt="tmux window bell notification" width="600" />
@@ -16,16 +16,16 @@
 
 ---
 
-## 🚀 简洁的 tmux 浮窗 Agent 面板
+## 🚀 Simple tmux floating agent panel
 
-一个简洁的 tmux 浮窗面板，用于实时监控所有 Agent 的运行状态，并支持快速跳转到对应的 pane。该面板也可作为独立的 TUI 应用在终端中直接运行。
+A concise tmux floating panel for real-time monitoring of all Agent statuses, with support for quickly jumping to the corresponding pane. This panel can also be run directly in the terminal as a standalone TUI application.
 
 <p align="center">
-  <img src="docs/screenshots/floating-popup.png" alt="tmux-agent-sidebar floating popup" width="800" />
+  <img src="docs/screenshots/floating-popup.png" alt="agent-panel floating popup" width="800" />
 </p>
 
-- **状态监控** — 汇总显示所有会话中的 Agent 状态、提示词及任务进度。
-- **快速跳转** — 在面板中直接选中并跳转到目标 Agent 所在的窗口或面板。
+- **Status Monitoring** — Aggregates and displays Agent status, prompts, and task progress across all sessions.
+- **Quick Jump** — Select and jump directly to the target Agent's window or pane from the panel.
 
 ---
 
