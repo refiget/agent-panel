@@ -8,26 +8,23 @@
 
 ---
 
-## 🚀 Floating Window TUI
+## 🚀 简洁的 tmux 浮窗 Agent 面板
 
-This fork transforms the persistent sidebar into a **disposable floating window**. Toggle it instantly when you need to check agent status, then dismiss it to keep your workspace clean.
+一个简洁的 tmux 浮窗面板，用于实时监控所有 Agent 的运行状态，并支持快速跳转到对应的 pane。
 
 <p align="center">
   <img src="docs/screenshots/floating-popup.png" alt="tmux-agent-sidebar floating popup" width="800" />
 </p>
 
-### Features
-
-- **Global Tracking** — Monitors all AI agents across all tmux sessions and windows.
-- **Rich Metadata** — Prompts, tool calls, background shell state, and task progress.
-- **Git & Worktrees** — Manage worktrees and view Git state directly from the TUI.
-- **Minimal Impact** — Runs as a `display-popup` process; no persistent pane required.
+- **状态监控** — 汇总显示所有会话中的 Agent 状态、提示词及任务进度。
+- **快速跳转** — 在面板中直接选中并跳转到目标 Agent 所在的窗口或面板。
+- **Git & Worktrees** — 在 TUI 中直接管理工作树并查看 Git 状态。
 
 ---
 
-## 🔔 Window Bell Notifications
+## 🔔 tmux window 状态提醒
 
-Stay informed without keeping the TUI open. The plugin integrates with tmux's window bell to alert you when an agent requires attention or finishes a task.
+集成 tmux window bell 机制。当 Agent 需要确认或任务完成时，tmux 状态栏会显示提醒标识，聚焦到对应面板后自动消除。
 
 <p align="center">
   <img src="docs/screenshots/bell-notification.png" alt="tmux window bell notification" width="600" />
